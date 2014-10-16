@@ -1,0 +1,16 @@
+# Color mappings for network log
+INFO
+  __default__
+CRIT
+  DUPLEX_MISMATCH
+  PWR_RPS
+  FAN_FAILED
+HIGH
+  BADAUTH
+  FAN_LOW_RPM
+  DUPADDR
+WARN
+  UPDOWN
+  MACFLAP
+  NATIVE_VLAN_MISMATCH
+

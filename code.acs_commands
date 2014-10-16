@@ -1,0 +1,26 @@
+# Color mappings for acs_commands log
+default
+  __default__
+config
+  configure
+reload
+  reload
+comply
+  comply
+noc
+  lruser
+  pete
+  matt
+  rphinney
+  slyons
+  jtracy
+  kgenessy
+  tj
+  kquire
+  dmills
+  jclyde
+  srichard
+  mdownie
+  jhow
+
+

@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <title>logmon</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Monaco, Courier; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+    </style>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/static/jquery.min.js"></script>
+    <script>
+
+function addLine(msg) {
+    $('#messages').append($('<li>').html(msg));
+}
+
+$(function() {
+    $.get('/list/channels', function(data) {
+	$.each(data.sort(), function(i, d) {
+	    addLine('<a href="/' + d + '" target="_blank">Join ' + d + '</a> (<a href="/' + d + '_raw" target="_blank">raw</a>)');
+	});
+    });	
+});
+	
+    </script>
+  </body>
+</html>

@@ -1,0 +1,285 @@
+<!doctype html>
+<html>
+  <head>
+    <title>logmon</title>
+    <link href="static/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="static/default.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <nav id="nav" class="navbar navbar-inverse" role="navigation">
+      <div class="container-fluid">
+	<!-- Brand and toggle get grouped for better mobile display -->
+	<div class="navbar-header">
+	  <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+	  </button>
+	  <a class="navbar-brand" href="#">LOGMON</a>
+	</div>
+
+	<!-- Collect the nav links, forms, and other content for toggling -->
+	<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+	  <ul class="nav navbar-nav">
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">Channels <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+		<li><a href="#">Action</a></li>
+		<li><a href="#">Another action</a></li>
+		<li><a href="#">Something else here</a></li>
+		<li class="divider"></li>
+		<li><a href="#">Separated link</a></li>
+		<li class="divider"></li>
+		<li><a href="#">One more separated link</a></li>
+              </ul>
+            </li>
+	  </ul>
+	  <ul class="nav navbar-nav navbar-right">
+	    <form class="navbar-form navbar-left" role="search">
+              <div class="form-group">
+		<input type="text" id="filter" class="form-control" placeholder="Filter">
+              </div>
+	    </form>
+	  </ul>
+	</div><!-- /.navbar-collapse -->
+      </div><!-- /.container-fluid -->
+    </nav>
+
+    <div class="underbar main">
+      <div id="messages" />
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/static/jquery.min.js"></script>
+    <script src="/static/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="/static/sprintf.min.js"></script>
+    <script src="/static/mustache.min.js"></script>
+    <script id="network-template" type="x-tmpl-mustache">
+      <pre class="network-{{code}}">{{code}} {{ip%15.15s}} :: {{msg}}</pre>
+    </script>
+    <script id="acs_commands-template" type="x-tmpl-mustache">
+      <pre class="commands-{{code}}">{{user}} {{device}} :: {{command}}</pre>
+    </script>
+    <script id="acs_access-template" type="x-tmpl-mustache">
+      <pre class="access-{{code}}">{{code}} {{user}} {{{remote_ip}}} :: {{port}} :: {{device_ip%15.15s}}</pre>
+    </script>
+    <script id="acs_access_vpn-template" type="x-tmpl-mustache">
+      <span class="access-vpn-{{code}}">{{code}} {{user}} {{ip_address%-15.15s}} VPN</span>
+    </script>
+    <script id="firewall-template" type="x-tmpl-mustache">
+      <pre>{{data}}</pre>
+    </script>
+    <script id="everything-template" type="x-tmpl-mustache">
+      <pre>{{data}}</pre>
+    </script>
+    <script>
+
+var socket = io();
+socket.on('connect', function(data){
+    var channel = window.location.pathname.replace('/', '');
+    socket.emit('join', channel);
+
+    addLine("<pre>Joined " + channel + " at " + (new Date()) + '</pre>');
+});
+socket.on('data', function(data) {
+    var type = data.type;
+    var $template = $('#' + type + '-template');
+    var html = typeof(data) != 'object' ? '' : data;
+    if ($template.size()) {
+	var template, sprintfs;
+	if ($template.data('template')) {
+	    // Store processed templates to be faster next time
+	    template = $template.data('template');
+	    sprintfs = $template.data('sprintfs');
+	} else {
+	    template = $template.html().trim();
+	    sprintfs = [];
+
+	    var formats = template.match(/\{[^\{\}%]+%[^\}]+\}/g);
+	    if (formats) {
+		formats.forEach(function(m) {
+		    var r = new RegExp(m, 'g');
+		    var c = m.match(/^\{([^%]+)/)[1];
+		    var f = m.match(/(%[^\}]+)/)[1];
+		    sprintfs.push([f, c]);
+		    template = template.replace(r, '{' + c + '}');
+		});
+	    }
+	    $template.data('template', template)
+	    $template.data('sprintfs', sprintfs);
+	}
+	sprintfs.forEach(function(s) {
+	    data[s[1]] = sprintf(s[0], data[s[1]]);
+	});
+	Mustache.parse(template);   // optional, speeds up future uses
+	html = Mustache.render(template, data);
+	if (Mustache.render(template, {}) == html) console.log('no data 1', template, data);
+    } else {
+	if (window.location.pathname.match(/_raw$/)) {
+	    html = Mustache.render('<pre>{{data}}</pre>', data);
+	    if (Mustache.render(template, {}) == html) console.log('no data 2', template, data);
+	}
+    }
+    addLine(html);
+});
+
+var lines = [];
+var filters = [];
+function addLine(html) {
+    var show = filterAllow(html);
+    lines.unshift({html: html, show: show });
+    if (show) refreshDisplay();
+}
+
+function refilter() {
+    var needRefresh;
+    var i, l;
+    for (i = 0, l = lines.length; i < l; i++) {
+	var line = lines[i];
+	var show = filterAllow(line.html);
+	if (show != line.show) {
+	    line.show = show;
+	    needRefresh = true;
+	}
+    }
+    if (needRefresh) refreshDisplay(true);
+}
+
+function filterAllow(html) {
+    if (!filters || filters.length == 0) return true;
+
+    var allow = true;
+    html = html.toLowerCase();
+    filters.forEach(function(filter) {
+	if (!allow) return;
+
+	if (html.indexOf(filter) < 0) allow = false;
+    });
+    return allow;
+}
+
+// Render periodically if there are new lines added
+var refreshTimer;
+function refreshDisplay(immediate) {
+    function refresh() {
+	clearTimeout(refreshTimer);
+	refreshTimer = undefined;
+
+	// Drop lines that won't be displayed
+	if (maxLines > 0) {
+	    var c = 0,
+                i,
+                l = lines.length;
+	    for (i = 0; i < l; i++) {
+		if (lines[i].show && ++c >= maxLines) {
+		    lines.length = i+1;
+		    break;
+		}
+	    }
+	} else {
+	    lines.length = 50;
+	}
+
+	var html = '';
+	lines.forEach(function(e) {
+	    if (e.show) {
+		html += e.html;
+	    }
+	});
+	$('#messages').html(html);
+
+	// Fade in top line
+	if (!immediate) $('#messages pre:first').fadeIn();
+	else $('#messages pre:first').show();
+    }
+
+    // Only refresh every 500ms, unless request is for immediate refresh
+    if (immediate) {
+	refresh();
+    } else if (!refreshTimer) {
+	refreshTimer = setTimeout(refresh, 700);
+    }
+}
+
+var maxLines;
+function setMaxLines() {
+    function isScrolledIntoView(elem) {
+	var docViewTop = $(window).scrollTop();
+	var docViewBottom = docViewTop + $(window).height();
+
+	var elemTop = $(elem).offset().top;
+	var elemBottom = elemTop + $(elem).height();
+
+	return ((elemBottom <= docViewBottom) && (elemTop >= docViewTop));
+    }
+
+    var c;
+    for(c = 0; c < 1000; c++) {
+	$('#messages').prepend('<pre class="maxlines">.</pre>');
+	var $last = $('#messages pre.maxlines:last');
+	$last.hide().offset();
+	$last.show().offset();
+	if (!isScrolledIntoView($last)) {
+	    maxLines = c;
+	    break;
+	}
+    }
+    $('.maxlines').remove();
+}
+
+$(function() {
+    // Debounce resize events
+    var resizeTimer;
+    $(window).resize(function() {
+	clearTimeout(resizeTimer);
+	resizeTimer = setTimeout(function() {
+	    resizeTimer = undefined;
+	    setMaxLines();
+	}, 500);
+    });
+    setMaxLines();
+
+    // Repress submit
+    $('form').submit(function() {
+	return false;
+    });
+
+    var urlFilter = (window.location.search.match(/filter=([^;+&]+)/i) || [])[1];
+    if (urlFilter) {
+	$('#filter').val(decodeURI(urlFilter)).keyup();
+    }
+
+    // Update filter
+    var keyTimer;
+    $('#filter').keyup(function(e) {
+	if (e.target.id == 'filter') {
+	    clearTimeout(keyTimer);
+	    keyTimer = setTimeout(function() {
+		keyTimer = undefined;
+		filters = $('#filter').val().toLowerCase().trim().split(/\s+/);
+		refilter();
+	    }, 500);
+	}
+    });
+
+/*    var hideNav = setTimeout(function() { $('#nav').hide(); }, 1000);
+    $(window).mousemove(function() {
+	if (hideNav) {
+	    clearTimeout(hideNav);
+	    hideNav = undefined;
+	}
+	$("#nav").stop(true).show();
+	hideNav = setTimeout(function() { $('#nav').hide(); }, 2000);
+    });*/
+
+    // Activate CSS theme if passed on URL
+    var css = (window.location.search.match(/css=(\w+)/i) || [])[1];
+    if (css) {
+	$('div.main').attr('id', css);
+    }
+});
+	
+    </script>
+  </body>
+</html>

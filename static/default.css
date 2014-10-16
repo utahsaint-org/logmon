@@ -1,0 +1,47 @@
+::-webkit-scrollbar { 
+    display: none; 
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background-color: black }
+.network-INFO { color: #66f; }
+.network-WARN { color: #f90; }
+.network-HIGH { color: #f00; }
+.network-CRIT { color: #fff; background-color: #c00; }
+.commands-default { color: cyan; }
+.commands-comply { color: cyan; }
+.commands-noc { color: yellow; }
+.commands-config { color: red; }
+.commands-reload { color: white; }
+.access-PASS, .access-vpn-PASS { color: green; }
+.access-FAIL, .access-vpn-FAIL { color: red; }
+#messages { list-style-type: none; margin: 0; padding: 0; }
+#messages li { padding: 0px 10px; color: white; }
+
+.underbar	{
+	}
+
+pre:first-of-type { display:none; }
+
+pre {
+		font-family: Menlo, Monaco, Courier;
+		color: #fff;
+    background : 0;
+    border : 0;
+    margin : 0;
+    margin-bottom : 1;
+    padding : 0;
+		padding-left: 8px;
+}
+
+
+
+#NOC	{
+	}
+#NOC pre	{
+	font-size: 48px;
+	}
+#NOC pre.network-INFO { color: #0ff; }
+#NOC pre.network-WARN { color: #f90; }
+#NOC pre.network-HIGH { color: #f00; }
+#NOC pre.network-CRIT { color: #fff; background-color: #c00; }
