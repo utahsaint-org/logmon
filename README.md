@@ -6,7 +6,7 @@ Install Ubuntu 14.04, don't install any optional packages, except OpenSSH packag
 
 ```
 sudo apt-get install node npm git
-git clone git@github.com:utahsaint-org/logmon.git
+git clone https://github.com/utahsaint-org/logmon.git
 cd logmon
 npm install
 ```
