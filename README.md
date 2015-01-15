@@ -26,4 +26,4 @@ Verify that logmon has successfully started.
 sudo service logmon status
 ```
 
-Go to http://<host>> and you will see a list of log channels to display.
+Go to http://*&lt;host&gt;* and you will see a list of log channels to display.
