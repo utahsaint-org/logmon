@@ -2,7 +2,7 @@
 
 ## Installation
 
-Install Ubuntu 14.04, don't install any optional packages, except OpenSSH package if needed for remote access
+Install Ubuntu 14.04, don't install any optional packages, except OpenSSH package if needed for remote access. Create an account `logmon` during the install.
 
 ```
 sudo apt-get install node npm git
